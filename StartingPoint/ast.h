@@ -28,6 +28,7 @@ struct Block
 {
   // TODO: Declare Any Member Variables
 
+
   // Member Function to Print
   void print_tree(ostream&,string,bool){
     // TODO: Finish this function
@@ -64,5 +65,16 @@ struct Program
     if (block) block->interpret(out); 
   }
 };
+
+// program → PROGRAM IDENT SEMICOLON block
+// block → compound
+// statement → compound | write
+// compound → TOK_BEGIN statement { SEMICOLON statement } END
+// write → WRITE OPENPAREN STRINGLIT CLOSEPAREN
+
+struct Statement {
+
+};
+
 
 

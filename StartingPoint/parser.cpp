@@ -61,6 +61,20 @@ Token expect(Token want, const char* msg)
 // TODO: implement parsing functions for each grammar in your language
 
 unique_ptr<Block> parseBlock(){
+
+    auto block = make_unique<Block>();
+
+    // if (peek() == Compound) {
+    //   expect(Compound, "expected Compound in block");
+    //   block->compound = parseCompound();
+    // }
+    
+    // expect(block, "expected block");
+    // block->compound = peekLex;
+   
+
+    return block;
+
   // Start by creating a pointer to the node we need
 
 
