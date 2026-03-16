@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <vector>
 using namespace std;
 
 // -----------------------------------------------------------------------------
@@ -23,20 +24,76 @@ inline void ast_line(ostream& os, string prefix, bool last, string label) {
 //      i.e. The root struct at the bottom of the file
 //           The leaves of the tree toward the top of the file
 
+// Struct Definitions
+struct Statement;
+struct CompoundStmt;
+struct WriteStmt;
+struct Block;
+struct Program;
+
+
+struct Statement {
+
+  vector<unique_ptr<Statement>> statements;
+
+  virtual void print_tree(ostream& os, string prefix, bool last) = 0;
+  virtual void interpret(ostream& out) = 0;
+};
+
+struct CompoundStmt : public Statement {
+
+  vector<unique_ptr<Statement>> statements;
+
+  void print_tree(ostream& os, string prefix, bool last) {
+    ast_line(os, prefix, last, "Compound");
+    string child_prefix = prefix + (last ? "    " : "│   ");
+    for (size_t i = 0; i < statements.size(); ++i) {
+      statements[i]->print_tree(os, child_prefix, i == statements.size() - 1);
+    }
+  }
+
+  void interpret(ostream& out) {
+    for (const auto& stmt : statements) {
+      stmt->interpret(out);
+    }
+  }
+};
+
+struct WriteStmt : public Statement {
+
+  string string_lit;
+
+  void print_tree(ostream& os, string prefix, bool last) {
+    ast_line(os, prefix, last, "Write");
+    string child_prefix = prefix + (last ? "    " : "│   ");
+    ast_line(os, child_prefix, true, "StringLit: " + string_lit);
+  }
+
+  void interpret(ostream& out) {
+    out << string_lit << endl;
+  }
+
+};
+
+
 // TODO: Finish this struct for Block
 struct Block
 {
   // TODO: Declare Any Member Variables
-
+  unique_ptr<CompoundStmt> compound = make_unique<CompoundStmt>();
 
   // Member Function to Print
-  void print_tree(ostream&,string,bool){
+  void print_tree(ostream& os, string prefix, bool last){
     // TODO: Finish this function
+    ast_line(os, prefix, last, "Block");
+    string child_prefix = prefix + (last ? "    " : "│   ");
+
   };
 
   // Member Function to Interpret
-  void interpret(ostream&){
+  void interpret(ostream& out){
     // TODO: Finish this function
+    compound->interpret(out);
   };
 };
 
@@ -71,10 +128,3 @@ struct Program
 // statement → compound | write
 // compound → TOK_BEGIN statement { SEMICOLON statement } END
 // write → WRITE OPENPAREN STRINGLIT CLOSEPAREN
-
-struct Statement {
-
-};
-
-
-

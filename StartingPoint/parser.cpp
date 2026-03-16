@@ -57,32 +57,71 @@ Token expect(Token want, const char* msg)
   return got;
 }
 
+// Forword declarations 
+unique_ptr<WriteStmt> parse_write_stmt();
+unique_ptr<CompoundStmt> parse_compound_stmt();
+unique_ptr<CompoundStmt> parse_statement();
+unique_ptr<Block> parseBlock();
 
 // TODO: implement parsing functions for each grammar in your language
 
+// write → WRITE OPENPAREN STRINGLIT CLOSEPAREN
+unique_ptr<WriteStmt> parse_write_stmt() {
+  auto write = make_unique<WriteStmt>();
+
+  expect(WRITE, "start of write statement");
+  expect(OPENPAREN, "after WRITE");
+  expect(STRINGLIT, "string literal in write statement");
+  write->string_lit = peekLex;
+  expect(CLOSEPAREN, "after string literal in write statement");
+
+  return write;
+}
+
+
+// compound → TOK_BEGIN statement { SEMICOLON statement } END
+unique_ptr<CompoundStmt> parse_compound_stmt(){
+  auto compound = make_unique<CompoundStmt>();
+
+  expect(TOK_BEGIN, "start of compound statement");
+  compound->statements.push_back(parse_statement());
+  while (peek() == SEMICOLON) {
+    expect(SEMICOLON, "between statements in compound statement");
+    compound->statements.push_back(parse_statement());
+  }
+  expect(END, "end of compound statement");
+
+  return compound;
+}
+
+// statement → compound | write
+unique_ptr<CompoundStmt> parse_statement(){
+  if (peek() == TOK_BEGIN) {
+    return parse_compound_stmt();
+  }
+  // else if (peek() == WRITE) {
+  //   return parse_write_stmt();
+  // }
+  else {
+    ostringstream oss;
+    oss << "Parse error (line " << yylineno << "): expected statement, got "
+        << tname(peekTok) << " [" << (yytext ? yytext : "") << "]";
+    throw runtime_error(oss.str());
+  }
+  
+}
+
+// block → compound
 unique_ptr<Block> parseBlock(){
 
-    auto block = make_unique<Block>();
-
-    // if (peek() == Compound) {
-    //   expect(Compound, "expected Compound in block");
-    //   block->compound = parseCompound();
-    // }
-    
-    // expect(block, "expected block");
-    // block->compound = peekLex;
-   
-
-    return block;
-
   // Start by creating a pointer to the node we need
-
-
+  auto block = make_unique<Block>();
+ 
   // Step through the grammar, storing anything necessary as member variables
-
-  
+  block->compound = parse_compound_stmt();
+ 
   // When done with the grammar, return the pointer to our node
-  return 0;
+  return block;
 }
 
 // -----------------------------------------------------------------------------
