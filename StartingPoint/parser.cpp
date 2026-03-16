@@ -60,7 +60,7 @@ Token expect(Token want, const char* msg)
 // Forword declarations 
 unique_ptr<WriteStmt> parse_write_stmt();
 unique_ptr<CompoundStmt> parse_compound_stmt();
-unique_ptr<CompoundStmt> parse_statement();
+unique_ptr<Statement> parse_statement();
 unique_ptr<Block> parseBlock();
 
 // TODO: implement parsing functions for each grammar in your language
@@ -95,13 +95,13 @@ unique_ptr<CompoundStmt> parse_compound_stmt(){
 }
 
 // statement → compound | write
-unique_ptr<CompoundStmt> parse_statement(){
+unique_ptr<Statement> parse_statement(){
   if (peek() == TOK_BEGIN) {
     return parse_compound_stmt();
   }
-  // else if (peek() == WRITE) {
-  //   return parse_write_stmt();
-  // }
+  else if (peek() == WRITE) {
+    return parse_write_stmt();
+  }
   else {
     ostringstream oss;
     oss << "Parse error (line " << yylineno << "): expected statement, got "
@@ -162,7 +162,7 @@ unique_ptr<Program> parse()
   // *****************************************************
 
   // Ensure no extra tokens remain
-  if (peek() != EOF) {
+  if (peek() != TOK_EOF) {
     ostringstream oss;
     oss << "Parse error (line " << yylineno << "): extra tokens after <program>, got "
         << tname(peekTok) << " [" << (yytext ? yytext : "") << "]";

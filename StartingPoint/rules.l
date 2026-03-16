@@ -19,13 +19,25 @@ QUOTE  ["]
 
 %%
  /* DEFINE YOUR RULES STARTING HERE */
-[ \t\r]+        {  }
+[ \t\n\r]+        {  }
 
  /* Keywords */
- PROGRAM         { return PROGRAM; }
- BEGIN           { return TOK_BEGIN; }
- END             { return END; }
- WRITE           { return WRITE; }
+BEGIN           { return TOK_BEGIN; }
+ELSE            { return ELSE; }
+END             { return END; }
+IF              { return IF; }
+PROGRAM         { return PROGRAM; }
+READ            { return READ; }
+THEN            { return THEN; }
+VAR             { return VAR; }
+WHILE           { return WHILE; }
+WRITE           { return WRITE; }
+"CUSTOM KEYWORD"          { return CUSTOM; }
+
+ /* Datatype Specifiers */
+INTEGER         { return INTEGER; }
+REAL            { return REAL; }
+STRING          { return STRINGLIT; }
 
  /* Punctuation */
 "("             { return OPENPAREN; }
@@ -53,15 +65,18 @@ QUOTE  ["]
  Must start with a capital letter [A-Z]
  Then may contain only capital letters or digits [A-Z0-9]*
  If the IDENT is longer than 8 characters, return UNKNOWN*/
- [A-Z][A-Z0-9]*   { 
+
+[A-Z][A-Z0-9]*  { 
                     if (yyleng > 8) {
                         return UNKNOWN;
                     } else {
                         return IDENT; 
                     }
                 }
+
 [0-9]*            { return INTLIT; }
-[a-zA-Z0-9_]*     { return STRINGLIT; }
+[0-9]*"."[0-9]+  { return FLOATLIT; }
+[']([^'])*[']   { return STRINGLIT; }
 
  /* End-of-file */
 <<EOF>>         { return TOK_EOF; }
