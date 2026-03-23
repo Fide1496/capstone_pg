@@ -89,6 +89,7 @@ inline const char* tokName(Token t) {
     case WRITE:         return "WRITE";
     case CUSTOM:        return "CUSTOM KEYWORD";      
     case INTEGER:       return "INTEGER";
+    // Reminder: I might need to change real return to integer
     case REAL:          return "REAL";
     case SEMICOLON:     return "SEMICOLON";
     case COLON:         return "COLON";

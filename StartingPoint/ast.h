@@ -30,6 +30,8 @@ struct CompoundStmt;
 struct WriteStmt;
 struct Block;
 struct Program;
+struct AssignStmt;
+struct ReadStmt;
 
 
 struct Statement {
@@ -43,6 +45,14 @@ struct Statement {
 struct CompoundStmt : public Statement {
 
   vector<unique_ptr<Statement>> statements;
+
+  // void print_tree(ostream& os, string prefix, bool last) {
+  //   ast_line(os, prefix, last, "Compound");
+  //   string child_prefix = prefix + (last ? "    " : "│   ");
+  //   for (size_t i = 0; i < statements.size(); ++i) {
+  //     statements[i]->print_tree(os, child_prefix, i == statements.size() - 1);
+  //   }
+  // }
 
   void print_tree(ostream& os, string prefix, bool last) {
     ast_line(os, prefix, last, "Compound");
@@ -62,6 +72,7 @@ struct CompoundStmt : public Statement {
 struct WriteStmt : public Statement {
 
   string string_lit;
+  Token type;
 
   void print_tree(ostream& os, string prefix, bool last) {
     ast_line(os, prefix, last, "Write");
@@ -84,10 +95,14 @@ struct Block
 
   // Member Function to Print
   void print_tree(ostream& os, string prefix, bool last){
-    // TODO: Finish this function
     ast_line(os, prefix, last, "Block");
     string child_prefix = prefix + (last ? "    " : "│   ");
 
+    if (compound) {
+      compound->print_tree(os, child_prefix, true);
+    } else {
+      ast_line(os, child_prefix, true, "(empty)");
+    }
   };
 
   // Member Function to Interpret
@@ -121,6 +136,38 @@ struct Program
   { 
     if (block) block->interpret(out); 
   }
+};
+
+struct AssignStmt{
+  string id;
+  Token type;
+  string value;
+
+  void print_tree(ostream& os, string prefix, bool last) {
+    ast_line(os, prefix, last, "Assign");
+    string child_prefix = prefix + (last ? "    " : "│   ");
+    ast_line(os, child_prefix, true, "ID: " + id);
+    ast_line(os, child_prefix, true, "Type: " + tokName(type));
+    ast_line(os, child_prefix, true, "Value: " + value);
+  }
+  void interpreet(ostream& out) {
+
+  }
+  
+};
+
+struct ReadStmt{
+  string target;
+
+  void print_tree(ostream& os, string prefix, bool last) {
+    ast_line(os, prefix, last, "Read");
+    string child_prefix = prefix + (last ? "    " : "│   ");
+    ast_line(os, child_prefix, true, "Target: " + target);
+  }
+  void interpret(ostream& out) {
+
+  }
+
 };
 
 // program → PROGRAM IDENT SEMICOLON block

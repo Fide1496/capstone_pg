@@ -50,7 +50,7 @@ STRING          { return STRINGLIT; }
 "-"             { return MINUS; }
 "*"             { return MULTIPLY; }
 "/"             { return DIVIDE; }
-"="             { return ASSIGN; }
+":="             { return ASSIGN; }
 "=="            { return EQUALTO; }
 "<"             { return LESSTHAN; }
 ">"             { return GREATERTHAN; }
