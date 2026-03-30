@@ -10,6 +10,8 @@
 #include <sstream>
 #include <string>
 #include <set>
+#include <map>
+#include <variant>
 #include "lexer.h"
 #include "ast.h"
 #include "debug.h"
@@ -62,8 +64,76 @@ unique_ptr<WriteStmt> parse_write_stmt();
 unique_ptr<CompoundStmt> parse_compound_stmt();
 unique_ptr<Statement> parse_statement();
 unique_ptr<Block> parseBlock();
+unique_ptr<AssignStmt> parseAssign();
+unique_ptr<ReadStmt> parseRead();
+unique_ptr<VarDeclSection> parseVarDeclSection();
 
 // TODO: implement parsing functions for each grammar in your language
+
+unique_ptr<ReadStmt> parseRead() {
+  auto read = make_unique<ReadStmt>();
+
+  expect(READ, "start of read statement");
+  expect(IDENT, "variable name in read statement");
+  read->target = peekLex;
+  expect(IDENT, "variable name in read statement");
+
+  return read;
+}
+
+unique_ptr<AssignStmt> parseAssign() {
+  auto assign = make_unique<AssignStmt>();
+
+  expect(IDENT, "variable name in assignment");
+  assign->id = peekLex;
+  expect(IDENT, "variable name in assignment");
+  expect(ASSIGN, "after variable name in assignment");
+  Token value_type = peek();
+  if (value_type == INTLIT || value_type == FLOATLIT) {
+    assign->type = value_type;
+    assign->value = peekLex;
+    expect(value_type, "value in assignment");
+  } else if (value_type == IDENT) {
+    assign->type = IDENT;
+    assign->value = peekLex;
+    expect(IDENT, "variable name as value in assignment");
+  } else {
+    ostringstream oss;
+    oss << "Parse error (line " << yylineno << "): expected integer literal, float literal, or identifier as value in assignment, got "
+        << tname(value_type) << " [" << (yytext ? yytext : "") << "]";
+    throw runtime_error(oss.str());
+  }
+
+  return assign;
+}
+
+unique_ptr<VarDeclSection> parseVarDeclSection() {
+
+  // TODO: parseVarDeclSection()
+  // Consume VAR
+  // Parse one or more:
+  // IDENT COLON (REAL | INTEGER) SEMICOLON
+
+  auto varDeclSection = make_unique<VarDeclSection>();
+  expect(VAR, "start of variable declaration section");
+  do {
+    expect(IDENT, "variable name in declaration");
+    string id = peekLex;
+    expect(IDENT, "variable name in declaration");
+    expect(COLON, "after variable name in declaration");
+    Token type = peek();
+    if (type != REAL && type != INTEGER) {
+      ostringstream oss;
+      oss << "Parse error (line " << yylineno << "): expected type REAL or INTEGER in variable declaration, got "
+          << tname(type) << " [" << (yytext ? yytext : "") << "]";
+      throw runtime_error(oss.str());
+    }
+    expect(type, "type in variable declaration");
+    expect(SEMICOLON, "after variable declaration");
+    varDeclSection->declarations.emplace_back(type, id);
+  } while (peek() == IDENT);
+
+}
 
 // write → WRITE OPENPAREN STRINGLIT CLOSEPAREN
 unique_ptr<WriteStmt> parse_write_stmt() {
@@ -96,11 +166,27 @@ unique_ptr<CompoundStmt> parse_compound_stmt(){
 
 // statement → compound | write
 unique_ptr<Statement> parse_statement(){
+  // TODO: Dispath to read/write/assign/compound based on peek token type
+  // parseStatement()
+  // Lookahead dispatch:
+  // TOK_BEGIN → compound
+  // READ → read
+  // WRITE → write
+  // IDENT → assign
+
+
+
   if (peek() == TOK_BEGIN) {
     return parse_compound_stmt();
   }
+  else if (peek() == READ) {
+    return parseRead();
+  }
   else if (peek() == WRITE) {
     return parse_write_stmt();
+  }
+  else if (peek() == IDENT) {
+    return parseAssign();
   }
   else {
     ostringstream oss;
@@ -114,8 +200,27 @@ unique_ptr<Statement> parse_statement(){
 // block → compound
 unique_ptr<Block> parseBlock(){
 
+//   TODO: Parse declarations if any; add to symbolTable;
+//   then parse compound statement.
+
+
+
   // Start by creating a pointer to the node we need
   auto block = make_unique<Block>();
+
+  if(peek() == INTEGER || peek() == REAL) {
+    Token type = nextTok();
+    expect(IDENT, "variable name in declaration");
+    string id = peekLex;
+    expect(IDENT, "variable name in declaration");
+    expect(SEMICOLON, "after variable declaration");
+    // Add variable to symbol table with default value
+    if (type == INTEGER) {
+      symbolTable[id] = 0; // default int value
+    } else if (type == REAL) {
+      symbolTable[id] = 0.0; // default double value
+    }
+  }
  
   // Step through the grammar, storing anything necessary as member variables
   block->compound = parse_compound_stmt();
@@ -171,3 +276,19 @@ unique_ptr<Program> parse()
 
   return root;
 }
+
+// void interpret(ostream& out) override {
+//  (void)out;
+//  auto& lhs = symbolTable[id]; // guaranteed to exist
+//  visit([&](auto& slot) {
+//   using T = decay_t<decltype(slot)>; // T is int or double
+//   if (value_type == INTLIT) {
+//   slot = static_cast<T>(stoi(value));
+//   } else if (value_type == FLOATLIT) {
+//   slot = static_cast<T>(stod(value));
+//   } else { // IDENT
+//   auto& rhs = symbolTable[value]; // guaranteed to exist
+//   visit([&](auto r) { slot = static_cast<T>(r); }, rhs);
+//   }
+//  }, lhs);
+// }

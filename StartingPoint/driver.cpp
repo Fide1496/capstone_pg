@@ -167,7 +167,21 @@ int main(int argc, char** argv)
         banner("INTERPRETATION COMPLETE", C_YBOLD);
 
         // Symbol Table
-        // TO DO in Part 2
+        if (FLAG_SYMBOLS) {
+            banner("SYMBOL TABLE", C_CYAN);
+            extern map<string, variant<int,double>> symbolTable;
+            for (const auto& [name, value] : symbolTable) {
+                cout << name << " = ";
+                visit([&](auto v) {
+                    if constexpr (is_same_v<decltype(v), int>) {
+                        cout << v << " (INTEGER)";
+                    } else {
+                        cout << v << " (REAL)";
+                    }
+                }, value);
+                cout << "\n";
+            }
+        }
 
         // Display success
         banner("Program executed successfully", C_GREEN);

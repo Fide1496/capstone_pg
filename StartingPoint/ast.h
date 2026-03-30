@@ -9,7 +9,11 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <map>
+#include <variant>
 using namespace std;
+
+inline map<string, variant<int,double>> symbolTable;
 
 // -----------------------------------------------------------------------------
 // Pretty printer
@@ -45,14 +49,6 @@ struct Statement {
 struct CompoundStmt : public Statement {
 
   vector<unique_ptr<Statement>> statements;
-
-  // void print_tree(ostream& os, string prefix, bool last) {
-  //   ast_line(os, prefix, last, "Compound");
-  //   string child_prefix = prefix + (last ? "    " : "│   ");
-  //   for (size_t i = 0; i < statements.size(); ++i) {
-  //     statements[i]->print_tree(os, child_prefix, i == statements.size() - 1);
-  //   }
-  // }
 
   void print_tree(ostream& os, string prefix, bool last) {
     ast_line(os, prefix, last, "Compound");
@@ -138,7 +134,7 @@ struct Program
   }
 };
 
-struct AssignStmt{
+struct AssignStmt : public Statement{
   string id;
   Token type;
   string value;
@@ -147,16 +143,23 @@ struct AssignStmt{
     ast_line(os, prefix, last, "Assign");
     string child_prefix = prefix + (last ? "    " : "│   ");
     ast_line(os, child_prefix, true, "ID: " + id);
-    ast_line(os, child_prefix, true, "Type: " + tokName(type));
+    ast_line(os, child_prefix, true, string("Type: ") + tokName(type));
     ast_line(os, child_prefix, true, "Value: " + value);
   }
-  void interpreet(ostream& out) {
-
+  void interpret(ostream& out) {
+    (void)out;
+    if (type == INTEGER) {
+      symbolTable[id] = stoi(value);
+    } else if (type == REAL) {
+      symbolTable[id] = stod(value);
+    } else {
+      cerr << "Error: unsupported type for assignment." << endl;
+    }
   }
   
 };
 
-struct ReadStmt{
+struct ReadStmt : public Statement {
   string target;
 
   void print_tree(ostream& os, string prefix, bool last) {
@@ -165,9 +168,48 @@ struct ReadStmt{
     ast_line(os, child_prefix, true, "Target: " + target);
   }
   void interpret(ostream& out) {
-
+      (void)out;
+      auto& var = symbolTable[target]; // guaranteed to exist
+      if (holds_alternative<int>(var)) {
+        int value;
+        cout << "Enter an integer value for " << target << ": ";
+        cin >> value;
+        var = value; // update the symbol table with the new value
+      } else if (holds_alternative<double>(var)) {
+        double value;
+        cout << "Enter a double value for " << target << ": ";
+        cin >> value;
+        var = value; // update the symbol table with the new value
+      } else {
+        cerr << "Error: variable " << target << " has an unsupported type for reading." << endl;
+      }
   }
 
+};
+
+struct VarDeclSection {
+  vector<tuple<Token, string>> declarations; // (type, id)
+
+  void print_tree(ostream& os, string prefix, bool last) {
+    ast_line(os, prefix, last, "VarDeclSection");
+    string child_prefix = prefix + (last ? "    " : "│   ");
+    for (const auto& [type, id] : declarations) {
+      ast_line(os, child_prefix, true, "Var: " + id + " Type: " + tokName(type));
+    }
+  }
+
+  void interpret(ostream& out) {
+    (void)out;
+    for (const auto& [type, id] : declarations) {
+      if (type == INTEGER) {
+        symbolTable[id] = 0; // default int value
+      } else if (type == REAL) {
+        symbolTable[id] = 0.0; // default double value
+      } else {
+        cerr << "Error: unsupported type in variable declaration." << endl;
+      }
+    }
+  }
 };
 
 // program → PROGRAM IDENT SEMICOLON block
