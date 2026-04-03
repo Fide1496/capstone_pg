@@ -67,17 +67,27 @@ struct CompoundStmt : public Statement {
 
 struct WriteStmt : public Statement {
 
-  string string_lit;
+  string content;
   Token type;
 
   void print_tree(ostream& os, string prefix, bool last) {
     ast_line(os, prefix, last, "Write");
     string child_prefix = prefix + (last ? "    " : "│   ");
-    ast_line(os, child_prefix, true, "StringLit: " + string_lit);
+    ast_line(os, child_prefix, true, "Content: " + content);
   }
 
   void interpret(ostream& out) {
-    out << string_lit << endl;
+    if (type == STRINGLIT) {
+      out << content << endl;
+    } else if (type == IDENT) {
+      if (symbolTable.count(content)) {
+        visit([&out](auto v){ out << v << endl; }, symbolTable[content]);
+      } else {
+        cerr << "Error: undefined variable " << content << endl;
+      }
+    } else {
+      cerr << "Error: unsupported type for write." << endl;
+    }
   }
 
 };
@@ -148,10 +158,16 @@ struct AssignStmt : public Statement{
   }
   void interpret(ostream& out) {
     (void)out;
-    if (type == INTEGER) {
+    if (type == INTLIT) {
       symbolTable[id] = stoi(value);
-    } else if (type == REAL) {
+    } else if (type == FLOATLIT) {
       symbolTable[id] = stod(value);
+    } else if (type == IDENT) {
+      if (symbolTable.count(value)) {
+        symbolTable[id] = symbolTable[value];
+      } else {
+        cerr << "Error: undefined variable " << value << endl;
+      }
     } else {
       cerr << "Error: unsupported type for assignment." << endl;
     }
@@ -169,17 +185,17 @@ struct ReadStmt : public Statement {
   }
   void interpret(ostream& out) {
       (void)out;
-      auto& var = symbolTable[target]; // guaranteed to exist
+      auto& var = symbolTable[target]; 
       if (holds_alternative<int>(var)) {
         int value;
         cout << "Enter an integer value for " << target << ": ";
         cin >> value;
-        var = value; // update the symbol table with the new value
+        var = value;
       } else if (holds_alternative<double>(var)) {
         double value;
         cout << "Enter a double value for " << target << ": ";
         cin >> value;
-        var = value; // update the symbol table with the new value
+        var = value;
       } else {
         cerr << "Error: variable " << target << " has an unsupported type for reading." << endl;
       }
@@ -188,7 +204,7 @@ struct ReadStmt : public Statement {
 };
 
 struct VarDeclSection {
-  vector<tuple<Token, string>> declarations; // (type, id)
+  vector<tuple<Token, string>> declarations; 
 
   void print_tree(ostream& os, string prefix, bool last) {
     ast_line(os, prefix, last, "VarDeclSection");
@@ -202,9 +218,9 @@ struct VarDeclSection {
     (void)out;
     for (const auto& [type, id] : declarations) {
       if (type == INTEGER) {
-        symbolTable[id] = 0; // default int value
+        symbolTable[id] = 0; 
       } else if (type == REAL) {
-        symbolTable[id] = 0.0; // default double value
+        symbolTable[id] = 0.0; 
       } else {
         cerr << "Error: unsupported type in variable declaration." << endl;
       }

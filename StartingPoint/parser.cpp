@@ -74,9 +74,10 @@ unique_ptr<ReadStmt> parseRead() {
   auto read = make_unique<ReadStmt>();
 
   expect(READ, "start of read statement");
+  expect(OPENPAREN, "after READ");
   expect(IDENT, "variable name in read statement");
   read->target = peekLex;
-  expect(IDENT, "variable name in read statement");
+  expect(CLOSEPAREN, "after variable name in read statement");
 
   return read;
 }
@@ -86,7 +87,6 @@ unique_ptr<AssignStmt> parseAssign() {
 
   expect(IDENT, "variable name in assignment");
   assign->id = peekLex;
-  expect(IDENT, "variable name in assignment");
   expect(ASSIGN, "after variable name in assignment");
   Token value_type = peek();
   if (value_type == INTLIT || value_type == FLOATLIT) {
@@ -109,17 +109,15 @@ unique_ptr<AssignStmt> parseAssign() {
 
 unique_ptr<VarDeclSection> parseVarDeclSection() {
 
-  // TODO: parseVarDeclSection()
-  // Consume VAR
-  // Parse one or more:
-  // IDENT COLON (REAL | INTEGER) SEMICOLON
+  // block -> [VAR IDENT COLON (REAL | INTEGER) SEMICOLON
+  //           { IDENT COLON (REAL | INTEGER) SEMICOLON } ]
+  // Parse: VAR + (IDENT COLON type SEMICOLON)+ 
 
   auto varDeclSection = make_unique<VarDeclSection>();
   expect(VAR, "start of variable declaration section");
   do {
     expect(IDENT, "variable name in declaration");
     string id = peekLex;
-    expect(IDENT, "variable name in declaration");
     expect(COLON, "after variable name in declaration");
     Token type = peek();
     if (type != REAL && type != INTEGER) {
@@ -133,17 +131,32 @@ unique_ptr<VarDeclSection> parseVarDeclSection() {
     varDeclSection->declarations.emplace_back(type, id);
   } while (peek() == IDENT);
 
+  return varDeclSection;
+
 }
 
-// write → WRITE OPENPAREN STRINGLIT CLOSEPAREN
+// write → WRITE OPENPAREN (STRINGLIT | IDENT) CLOSEPAREN
 unique_ptr<WriteStmt> parse_write_stmt() {
   auto write = make_unique<WriteStmt>();
 
   expect(WRITE, "start of write statement");
   expect(OPENPAREN, "after WRITE");
-  expect(STRINGLIT, "string literal in write statement");
-  write->string_lit = peekLex;
-  expect(CLOSEPAREN, "after string literal in write statement");
+  Token tok = peek();
+  if (tok == STRINGLIT) {
+    write->content = peekLex;
+    write->type = STRINGLIT;
+    expect(STRINGLIT, "string literal in write statement");
+  } else if (tok == IDENT) {
+    write->content = peekLex;
+    write->type = IDENT;
+    expect(IDENT, "identifier in write statement");
+  } else {
+    ostringstream oss;
+    oss << "Parse error (line " << yylineno << "): expected string literal or identifier in write statement, got "
+        << tname(tok) << " [" << (yytext ? yytext : "") << "]";
+    throw runtime_error(oss.str());
+  }
+  expect(CLOSEPAREN, "after argument in write statement");
 
   return write;
 }
@@ -203,29 +216,29 @@ unique_ptr<Block> parseBlock(){
 //   TODO: Parse declarations if any; add to symbolTable;
 //   then parse compound statement.
 
-
-
-  // Start by creating a pointer to the node we need
   auto block = make_unique<Block>();
 
+  if(peek() == VAR) {
+    auto varDecls = parseVarDeclSection();
+    varDecls->interpret(cout);
+  }
+  
   if(peek() == INTEGER || peek() == REAL) {
     Token type = nextTok();
     expect(IDENT, "variable name in declaration");
     string id = peekLex;
     expect(IDENT, "variable name in declaration");
     expect(SEMICOLON, "after variable declaration");
-    // Add variable to symbol table with default value
+
     if (type == INTEGER) {
-      symbolTable[id] = 0; // default int value
+      symbolTable[id] = 0; 
     } else if (type == REAL) {
-      symbolTable[id] = 0.0; // default double value
+      symbolTable[id] = 0.0; 
     }
   }
  
-  // Step through the grammar, storing anything necessary as member variables
   block->compound = parse_compound_stmt();
  
-  // When done with the grammar, return the pointer to our node
   return block;
 }
 
@@ -235,16 +248,12 @@ unique_ptr<Block> parseBlock(){
 unique_ptr<Program> parseProgram() {
   // Make a pointer to the node we need to build
   auto p = make_unique<Program>();
-  // Step through the grammar, storing anything necessary as member variables
   expect(PROGRAM, "start of program");
   expect(IDENT, "program name");
-  // Store the program name 
   p->name  = peekLex;
   expect(SEMICOLON, "after program name");
-  // Store a pointer to the appropriate block
   p->block = parseBlock();
   expect(TOK_EOF, "at end of file (no trailing tokens after program)");
-  // Nothing left in the grammar so we return our node pointer
   return p;
 }
 
@@ -261,15 +270,24 @@ unique_ptr<Program> parse()
   peekTok = 0;
   peekLex.clear();
   
-  // *****************************************************
-  // To test piece-wise change the parser function you set as your root
-  auto root = parseProgram();
-  // *****************************************************
+  unique_ptr<Program> root;
+  
+  if (peek() == PROGRAM) {
+    root = parseProgram();
+  } else if (peek() == TOK_BEGIN) {
+    root = make_unique<Program>();
+    root->name = "(unnamed)";
+    root->block = parseBlock();
+  } else {
+    ostringstream oss;
+    oss << "Parse error (line " << yylineno << "): expected PROGRAM or BEGIN, got "
+        << tname(peek()) << " [" << (yytext ? yytext : "") << "]";
+    throw runtime_error(oss.str());
+  }
 
-  // Ensure no extra tokens remain
   if (peek() != TOK_EOF) {
     ostringstream oss;
-    oss << "Parse error (line " << yylineno << "): extra tokens after <program>, got "
+    oss << "Parse error (line " << yylineno << "): extra tokens after program, got "
         << tname(peekTok) << " [" << (yytext ? yytext : "") << "]";
     throw runtime_error(oss.str());
   }
