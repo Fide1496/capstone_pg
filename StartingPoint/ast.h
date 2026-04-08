@@ -24,36 +24,31 @@ inline void ast_line(ostream& os, string prefix, bool last, string label) {
 //      i.e. The root struct at the bottom of the file
 //           The leaves of the tree toward the top of the file
 
-// program → PROGRAM IDENT SEMICOLON block
-// block → compound
-// statement → compound | write
-// compound → TOK_BEGIN statement { SEMICOLON statement } END
-// write → WRITE OPENPAREN STRINGLIT CLOSEPAREN
 
 struct Statement{
   
   vector<unique_ptr<Statement>> statements;
 
   // Virtual functions for abstract base class
-  virtual void print_tree(ostream&,string,bool){
-  }
-  virtual void interpret(ostream&){
-  }
+  virtual void print_tree(ostream& os,string prefix, bool last) {}
+  virtual void interpret(ostream& os) {}
 };
 
 struct WriteStmt : public Statement{
 
   string stringlit;
 
-  void print_tree(ostream& out, string prefix){
+  void print_tree(ostream& out, string prefix, bool last){
 
-    cout<<"Inside write statement print tree func\n";
-    ast_line(out, prefix, true, "Compound");
+    // cout<<"Inside write statement print tree func\n";
+    ast_line(out, prefix, last, "Write Statement");
+    string child_prefix = prefix + (last ? "    ": "|   ");
+    ast_line(out, child_prefix, true, "String Literal: " + stringlit);
   }
 
-  void interpret(){
-
-    cout<<"Inside write statement interpret func\n";
+  void interpret(ostream& out){
+    // cout<<"Inside write statement interpret func\n";
+    out << stringlit << endl;
   }
 
 };
@@ -61,17 +56,25 @@ struct WriteStmt : public Statement{
 struct CompoundStmt : public Statement{
   vector<unique_ptr<Statement>> statements;
 
-  void print_tree(ostream& out, string prefix){
-    cout<<"Inside compound statement print tree func\n";
-    ast_line(out, prefix, false, "CompoundStmt");
+  void print_tree(ostream& out, string prefix, bool last){
+    // cout<<"Inside compound statement print tree func\n";
+
+    // ast_line(out, prefix, last, "Compound Statement");
+    ast_line(out, prefix, last, "Compound Statement");
+    string child_prefix = prefix + (last ? "    ": "|   ");
+    for (const auto& stmt: statements){
+      stmt->print_tree(out, child_prefix, last);
+    }
   }
 
   void interpret(ostream& out){
-    cout<<"Inside compound statement interpret func\n";
+    // cout<<"Inside compound statement interpret func\n";
+    for (const auto& stmt: statements){
+      stmt->interpret(out);
+    }
   }
 
 };
-
 
 
 // TODO: Finish this struct for Block
@@ -87,7 +90,7 @@ struct Block
 
     cout << "Block\n";
 
-    compound->print_tree(os, "");
+    compound->print_tree(os, "", last);
     
   }
 

@@ -73,9 +73,6 @@ unique_ptr<Statement> parseStatement(){
   else if(peek() == WRITE){
     return parseWrite();
   }
-  // else{
-  //   cout<<"IDK what to do here but just cuz";
-  // }
 }
 
 unique_ptr<WriteStmt> parseWrite(){
@@ -86,7 +83,8 @@ unique_ptr<WriteStmt> parseWrite(){
   expect(OPENPAREN, "open parenthases");
   // Store string literal variable
   expect(STRINGLIT,"string literal");
-  // write->stringlit  = peekLex;
+  write->stringlit  = peekLex;
+
   expect(CLOSEPAREN, "close parenthases");
   
   // Nothing left in the grammar so we return our node pointer
