@@ -21,6 +21,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <map>
+#include <variant>
 #include "lexer.h"  // Scanner functions: yylex, yyin, yylineno, yytext, tokName()
 #include "debug.h"  // Debug flag support: dbg::set(bool)
 #include "ast.h"    // Structures for your Abstract Syntax Tree
@@ -28,6 +30,7 @@ using namespace std;
 // -----------------------------------------------------------------------------
 // Scanner Skin Bridge
 // -----------------------------------------------------------------------------
+extern map<string, variant<int,double>> symbolTable;
 // gSkinC is a global pointer used by the scanner to select a keyword “skin.”
 // Example: --skin=pirate switches keywords to their pirate equivalents.
 // gSkinStorage must stay alive so gSkinC remains a valid C-style string.
@@ -167,7 +170,17 @@ int main(int argc, char** argv)
         banner("INTERPRETATION COMPLETE", C_YBOLD);
 
         // Symbol Table
-        // TO DO in Part 2
+        if (FLAG_SYMBOLS) {
+            banner("SYMBOL TABLE", C_MBOLD);
+            for (auto& [name, val] : symbolTable) {
+                if (holds_alternative<int>(val))
+                    cout << name << " : INTEGER = " 
+                              << get<int>(val) << endl;
+                else
+                    cout << name << " : REAL = " 
+                              << get<double>(val) << endl;
+            }
+        }
 
         // Display success
         banner("Program executed successfully", C_GREEN);
