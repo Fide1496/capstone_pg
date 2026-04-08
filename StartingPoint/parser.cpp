@@ -58,17 +58,70 @@ Token expect(Token want, const char* msg)
 }
 
 
+// Function declarations
+unique_ptr<Statement> parseStatement();
+unique_ptr<CompoundStmt> parseCompound();
+unique_ptr<WriteStmt> parseWrite();
+unique_ptr<Block> parseBlock();
+
 // TODO: implement parsing functions for each grammar in your language
+unique_ptr<Statement> parseStatement(){
+
+  if (peek() == TOK_BEGIN){
+    return parseCompound();
+  }
+  else if(peek() == WRITE){
+    return parseWrite();
+  }
+  // else{
+  //   cout<<"IDK what to do here but just cuz";
+  // }
+}
+
+unique_ptr<WriteStmt> parseWrite(){
+  // Make a pointer to the node we need to build
+  auto write = make_unique<WriteStmt>();
+  // Step through the grammar, storing anything necessary as member variables
+  expect(WRITE, "start of write block");
+  expect(OPENPAREN, "open parenthases");
+  // Store string literal variable
+  expect(STRINGLIT,"string literal");
+  // write->stringlit  = peekLex;
+  expect(CLOSEPAREN, "close parenthases");
+  
+  // Nothing left in the grammar so we return our node pointer
+  return write;
+}
+
+unique_ptr<CompoundStmt> parseCompound(){
+  auto compound = make_unique<CompoundStmt>();
+
+  expect(TOK_BEGIN, "begin token");
+
+  compound->statements.push_back(parseStatement());
+
+  // Handle multiple optional statements
+  while(peek() == SEMICOLON){
+    expect(SEMICOLON, "semicolon");
+    compound->statements.push_back(parseStatement());
+  }
+
+  expect(END, "end of compound stmt");
+
+  return compound;
+}
+
 
 unique_ptr<Block> parseBlock(){
   // Start by creating a pointer to the node we need
+  auto b = make_unique<Block>();
 
-
+  b->compound = parseCompound();
   // Step through the grammar, storing anything necessary as member variables
-
+  
   
   // When done with the grammar, return the pointer to our node
-  return 0;
+  return b;
 }
 
 // -----------------------------------------------------------------------------
@@ -109,7 +162,7 @@ unique_ptr<Program> parse()
   // *****************************************************
 
   // Ensure no extra tokens remain
-  if (peek() != EOF) {
+  if (peek() != TOK_EOF) {
     ostringstream oss;
     oss << "Parse error (line " << yylineno << "): extra tokens after <program>, got "
         << tname(peekTok) << " [" << (yytext ? yytext : "") << "]";

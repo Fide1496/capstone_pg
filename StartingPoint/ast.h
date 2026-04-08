@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <vector>
 using namespace std;
 
 // -----------------------------------------------------------------------------
@@ -23,20 +24,81 @@ inline void ast_line(ostream& os, string prefix, bool last, string label) {
 //      i.e. The root struct at the bottom of the file
 //           The leaves of the tree toward the top of the file
 
+// program → PROGRAM IDENT SEMICOLON block
+// block → compound
+// statement → compound | write
+// compound → TOK_BEGIN statement { SEMICOLON statement } END
+// write → WRITE OPENPAREN STRINGLIT CLOSEPAREN
+
+struct Statement{
+  
+  vector<unique_ptr<Statement>> statements;
+
+  // Virtual functions for abstract base class
+  virtual void print_tree(ostream&,string,bool){
+  }
+  virtual void interpret(ostream&){
+  }
+};
+
+struct WriteStmt : public Statement{
+
+  string stringlit;
+
+  void print_tree(ostream& out, string prefix){
+
+    cout<<"Inside write statement print tree func\n";
+    ast_line(out, prefix, true, "Compound");
+  }
+
+  void interpret(){
+
+    cout<<"Inside write statement interpret func\n";
+  }
+
+};
+
+struct CompoundStmt : public Statement{
+  vector<unique_ptr<Statement>> statements;
+
+  void print_tree(ostream& out, string prefix){
+    cout<<"Inside compound statement print tree func\n";
+    ast_line(out, prefix, false, "CompoundStmt");
+  }
+
+  void interpret(ostream& out){
+    cout<<"Inside compound statement interpret func\n";
+  }
+
+};
+
+
+
 // TODO: Finish this struct for Block
 struct Block
 {
   // TODO: Declare Any Member Variables
+  unique_ptr<CompoundStmt> compound;
+  
 
   // Member Function to Print
-  void print_tree(ostream&,string,bool){
+  void print_tree(ostream& os,string prefix,bool last){
     // TODO: Finish this function
-  };
+
+    cout << "Block\n";
+
+    compound->print_tree(os, "");
+    
+  }
 
   // Member Function to Interpret
-  void interpret(ostream&){
+  void interpret(ostream& out){
     // TODO: Finish this function
-  };
+    if (compound) compound->interpret(out); 
+    // cout<<"inside block interpret func" << out;
+    
+
+  }
 };
 
 // You do not need to edit this struct, but can if you choose
