@@ -32,7 +32,7 @@ THEN            { return THEN; }
 VAR             { return VAR; }
 WHILE           { return WHILE; }
 WRITE           { return WRITE; }
-"CUSTOM KEYWORD"          { return CUSTOM; }
+SPAWN           { return CUSTOM; }
 
  /* Datatype Specifiers */
 INTEGER         { return INTEGER; }
@@ -50,7 +50,7 @@ STRING          { return STRINGLIT; }
 "-"             { return MINUS; }
 "*"             { return MULTIPLY; }
 "/"             { return DIVIDE; }
-":="             { return ASSIGN; }
+":="            { return ASSIGN; }
 "=="            { return EQUALTO; }
 "<"             { return LESSTHAN; }
 ">"             { return GREATERTHAN; }
@@ -59,6 +59,10 @@ STRING          { return STRINGLIT; }
 "!"             { return TOK_NOT; }
 "||"            { return TOK_OR; }
 "&&"            { return TOK_AND; }
+"+="            { return PLUS_ASSIGN; }
+"-="            { return MINUS_ASSIGN; }
+"*="            { return MULTIPLY_ASSIGN; }
+"/="            { return DIVIDE_ASSIGN; }
 
 
  /* Identifiers 

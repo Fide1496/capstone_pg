@@ -69,12 +69,15 @@ Token expect(Token want, const char *msg)
 }
 
 // Function declarations
-unique_ptr<Statement> parseStatement();
+unique_ptr<Statement> parseStatement();\
+unique_ptr<Primary> parsePrimary();
 unique_ptr<CompoundStmt> parseCompound();
 unique_ptr<WriteStmt> parseWrite();
 unique_ptr<Block> parseBlock();
 unique_ptr<AssignStmt> parseAssign();
 unique_ptr<ReadStmt> parseRead();
+unique_ptr<Spawn> parseSpawn();
+string<Value> parseValue();
 
 unique_ptr<Statement> parseStatement()
 {
@@ -95,10 +98,44 @@ unique_ptr<Statement> parseStatement()
   {
     return parseRead();
   }
+  else if (peek() == CUSTOM)
+  {
+    return parseSpawn();
+  }
+}
+
+unique_ptr<Primary> parsePrimary()
+{
+  // Update this functions to handle int, float, or identifier literals as well as parenthesized expressions
+
+  // TODO Verify this AI generated code
+  if (peek() == INTLIT || peek() == FLOATLIT || peek() == IDENT)
+  {
+    auto val = make_unique<Value>();
+    val->type = peek();
+    nextTok(); // consume the literal or identifier
+    return val;
+  }
+  else if (peek() == OPENPAREN)
+  {
+    nextTok();
+    auto expr = parsePrimary();
+    expect(CLOSEPAREN, "closing parenthesis");
+    return expr;
+  }
   else
   {
-    return NULL;
+    throw runtime_error("expected primary expression");
   }
+
+
+}
+
+unique_ptr<Spawn> parseSpawn()
+{
+  auto spawn = make_unique<Spawn>();
+  expect(CUSTOM, "spawn statement");
+  return spawn;
 }
 
 unique_ptr<AssignStmt> parseAssign()
@@ -112,6 +149,8 @@ unique_ptr<AssignStmt> parseAssign()
 
   expect(ASSIGN, "assignment operator");
 
+
+  // TODO Handle these cases in the parse primary function instead of here
   Token tok = nextTok();
 
   if (tok == INTLIT || tok == FLOATLIT || tok == IDENT)
