@@ -17,7 +17,7 @@ using namespace std;
 // -----------------------------------------------------------------------------
 // External symbol table
 // -----------------------------------------------------------------------------
-extern map<string, variant<int,double>> symbolTable;
+inline map<string, variant<int,double>> symbolTable;
 
 // -----------------------------------------------------------------------------
 // Pretty printer
@@ -42,16 +42,64 @@ struct Statement{
   virtual void interpret(ostream&) {}
 };
 
+
+struct Spawn{
+
+
+  void print_tree(ostream& out, string prefix, bool last){
+    ast_line(out, prefix, last, "Spawn Statement");
+    string child_prefix = prefix + (last ? "    ": "|   ");
+  }
+
+  void interpret(ostream& out) {
+    (void)out;
+  }
+};
+
 struct Primary{
 
+  vector<unique_ptr<Primary>> primaries;
 
+  virtual void print_tree(ostream&,string, bool) {}
+  virtual void interpret(ostream&) {}
+
+};
+
+struct Value : public Primary{
+  string value;
+  Token type;
+
+  void print_tree(ostream& out, string prefix, bool last){
+    ast_line(out, prefix, last, "Value: " + value);
+  }
+
+  void interpret(ostream& out) {
+    (void)out;
+  }
+};
+
+struct Term : public Primary{
+
+};
+
+struct Factor : public Primary{
+  string value;
+  Token type;
+
+  void print_tree(ostream& out, string prefix, bool last){
+    ast_line(out, prefix, last, "Factor: " + value);
+  }
+
+  void interpret(ostream& out) {
+    (void)out;
+  }
 };
 
 struct AssignStmt : public Statement{
 
   string id;
   Token type;
-  string value;
+  unique_ptr<Value> value;
 
   void print_tree(ostream& out, string prefix, bool last){
     ast_line(out, prefix, last, "Assign Statement");
@@ -60,15 +108,15 @@ struct AssignStmt : public Statement{
 
   void interpret(ostream& out) override {
     (void)out;
-    auto& lhs = symbolTable[id]; // guaranteed to exist
+    auto& lhs = symbolTable[id]; 
     visit([&](auto& slot) {
-      using T = decay_t<decltype(slot)>; // T is int or double
+      using T = decay_t<decltype(slot)>; 
       if (type == INTLIT) {
         slot = static_cast<T>(stoi(value));
       } else if (type == FLOATLIT) {
         slot = static_cast<T>(stod(value));
-      } else { // IDENT
-        auto& rhs = symbolTable[value]; // guaranteed to exist
+      } else {
+        auto& rhs = symbolTable[value]; 
         visit([&](auto r) { slot = static_cast<T>(r); }, rhs);
       }
     }, lhs);
@@ -128,7 +176,6 @@ struct CompoundStmt : public Statement{
   void print_tree(ostream& out, string prefix, bool last){
     // cout<<"Inside compound statement print tree func\n";
 
-    // ast_line(out, prefix, last, "Compound Statement");
     ast_line(out, prefix, last, "Compound Statement");
     string child_prefix = prefix + (last ? "    ": "|   ");
     for (const auto& stmt: statements){
@@ -165,7 +212,6 @@ struct Block
 
   // Member Function to Interpret
   void interpret(ostream& out){
-    // TODO: Finish this function
     if (compound) compound->interpret(out); 
     // cout<<"inside block interpret func" << out;
   
@@ -198,3 +244,9 @@ struct Program
   }
 };
 
+=============================================================================
+  ast.h 
+=============================================================================
+MSU CSE 4714/6714 Capstone Project (Spring 2026)
+Author: Derek Willis
+=============================================================================

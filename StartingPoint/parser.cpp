@@ -24,7 +24,7 @@ bool havePeek = false;
 Token peekTok = 0;
 string peekLex;
 
-inline map<string, variant<int, double>> symbolTable;
+extern map<string, variant<int, double>> symbolTable;
 inline const char *tname(Token t) { return tokName(t); }
 
 Token peek()
@@ -77,8 +77,12 @@ unique_ptr<Block> parseBlock();
 unique_ptr<AssignStmt> parseAssign();
 unique_ptr<ReadStmt> parseRead();
 unique_ptr<Spawn> parseSpawn();
-string<Value> parseValue();
+unique_ptr<Value> parseValue();
+unique_ptr<Term> parseTerm();
+unique_ptr<Factor> parseFactor();
 
+
+// TODO: statement -> assign | compound | write | read | spawn (CUSTOM)
 unique_ptr<Statement> parseStatement()
 {
 
@@ -98,12 +102,18 @@ unique_ptr<Statement> parseStatement()
   {
     return parseRead();
   }
-  else if (peek() == CUSTOM)
-  {
-    return parseSpawn();
-  }
+  // else if (peek() == CUSTOM)
+  // {
+  //   return parseSpawn();
+  // }
 }
 
+unique_ptr<Spawn> parseSpawn()
+{
+  throw runtime_error("parseSpawn not implemented yet");
+}
+
+// TODO: primary -> FLOATLIT | INTLIT | IDENT | OPENPAREN value CLOSEPAREN
 unique_ptr<Primary> parsePrimary()
 {
   // Update this functions to handle int, float, or identifier literals as well as parenthesized expressions
@@ -127,17 +137,64 @@ unique_ptr<Primary> parsePrimary()
   {
     throw runtime_error("expected primary expression");
   }
-
-
 }
 
-unique_ptr<Spawn> parseSpawn()
+// factor -> [ MINUS ] primary
+unique_ptr<Factor> parseFactor()
 {
-  auto spawn = make_unique<Spawn>();
-  expect(CUSTOM, "spawn statement");
-  return spawn;
+  // TODO Implement this function to handle unary minus
+  if (peek() == MINUS)
+  {
+    nextTok(); // consume the minus
+    auto factor = make_unique<Factor>();
+    factor->type = MINUS;
+    factor->primaries.push_back(parsePrimary());
+    return factor;
+  }
+  else
+  {
+    auto factor = make_unique<Factor>();
+    factor->type = peek();
+    factor->primaries.push_back(parsePrimary());
+    return factor;
+  }
+
 }
 
+// TODO factor { ( MULTIPLY | DIVIDE | MOD) factor }
+unique_ptr<Term> parseTerm()
+{
+  // TODO Implement this function to handle factors and multiplication/division
+  throw runtime_error("parseTerm not implemented yet");
+}
+
+// TODO value->term { ( PLUS | MINUX) term }
+unique_ptr<Value> parseValue()
+{
+  auto value = make_unique<Value>();
+  if (peek() == MINUS || peek() == PLUS || peek() == INTLIT || peek() == FLOATLIT || peek() == IDENT)
+  {
+    value->type = peek();
+    nextTok();
+    // return val;
+    while(peek() == PLUS || peek() == MINUS)
+    {
+      // Token op = peek();
+      // nextTok();
+      // auto term = parseTerm();
+      // val->primaries.push_back(move(term));
+
+      cout<<"Inside value parse func\n";
+        
+    }
+  }
+  else
+  {
+    throw runtime_error("expected value");
+  }
+}
+
+// assign -> IDENT ( ASSIGN | CUSTOM ) value
 unique_ptr<AssignStmt> parseAssign()
 {
 
@@ -147,23 +204,19 @@ unique_ptr<AssignStmt> parseAssign()
 
   assign->id = peekLex;
 
-  expect(ASSIGN, "assignment operator");
-
-
-  // TODO Handle these cases in the parse primary function instead of here
-  Token tok = nextTok();
-
-  if (tok == INTLIT || tok == FLOATLIT || tok == IDENT)
+  if(peek()==ASSIGN)
   {
-
-    assign->value = string(yytext);
-
-    assign->type = tok;
+    nextTok();
+    assign->type = ASSIGN;
+  }
+  else if(peek()==CUSTOM)
+  {
+    nextTok();
+    assign->type = CUSTOM;
   }
   else
   {
-
-    throw runtime_error("expected literal or identifier after :=");
+    throw runtime_error("expected assignment operator");
   }
 
   return assign;
@@ -300,3 +353,31 @@ unique_ptr<Program> parse()
 
   return root;
 }
+
+============================================================================
+ parser.cpp — Recursive-descent parser
+----------------------------------------------------------------------------
+MSU CSE 4714/6714 Capstone Project (Spring 2026)
+Author: Derek Willis
+============================================================================
+
+LEXER ADDITIONS REQUIRED (lexer.h):
+  The following tokens must be defined and added to your lexer's switch/case
+  (tokName) before this file will compile cleanly.
+
+  Token names:    PLUS_ASSIGN   +=
+                  MINUS_ASSIGN  -=
+                  MULT_ASSIGN   *=
+                  DIV_ASSIGN    /=
+                  MOD           %    (if not already present)
+                  CUSTOM        spawn keyword (maps to your SPAWN lexer rule)
+
+  In your .l file add rules like:
+      "+="   { return PLUS_ASSIGN;  }
+      "-="   { return MINUS_ASSIGN; }
+      "*="   { return MULT_ASSIGN;  }
+      "/="   { return DIV_ASSIGN;   }
+      "%"    { return MOD;          }
+      "spawn"{ return CUSTOM;       }
+
+============================================================================
