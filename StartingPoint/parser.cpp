@@ -121,15 +121,16 @@ unique_ptr<Primary> parsePrimary()
   // TODO Verify this AI generated code
   if (peek() == INTLIT || peek() == FLOATLIT || peek() == IDENT)
   {
-    auto val = make_unique<Value>();
-    val->type = peek();
+    auto literal = make_unique<Literal>();
+    literal->type = peek();
     nextTok(); // consume the literal or identifier
-    return val;
+    literal->value = peekLex;
+    return literal;
   }
   else if (peek() == OPENPAREN)
   {
     nextTok();
-    auto expr = parsePrimary();
+    auto expr = parseValue();
     expect(CLOSEPAREN, "closing parenthesis");
     return expr;
   }
@@ -142,56 +143,50 @@ unique_ptr<Primary> parsePrimary()
 // factor -> [ MINUS ] primary
 unique_ptr<Factor> parseFactor()
 {
-  // TODO Implement this function to handle unary minus
+  auto factor = make_unique<Factor>();
+  factor->negative = false;
+
   if (peek() == MINUS)
   {
+    factor->negative = true;
     nextTok(); // consume the minus
-    auto factor = make_unique<Factor>();
-    factor->type = MINUS;
-    factor->primaries.push_back(parsePrimary());
-    return factor;
   }
-  else
-  {
-    auto factor = make_unique<Factor>();
-    factor->type = peek();
-    factor->primaries.push_back(parsePrimary());
-    return factor;
-  }
+
+  factor->primary = parsePrimary();
+  return factor;
 
 }
 
 // TODO factor { ( MULTIPLY | DIVIDE | MOD) factor }
 unique_ptr<Term> parseTerm()
 {
-  // TODO Implement this function to handle factors and multiplication/division
-  throw runtime_error("parseTerm not implemented yet");
+  auto term = make_unique<Term>();
+  term->factors.push_back(parseFactor());
+
+  while (peek() == MULTIPLY || peek() == DIVIDE || peek() == MOD)
+  {
+    term->operator_type = peek();
+    nextTok();
+    term->factors.push_back(parseFactor());
+  }
+  return term;
 }
 
 // TODO value->term { ( PLUS | MINUX) term }
 unique_ptr<Value> parseValue()
 {
-  auto value = make_unique<Value>();
-  if (peek() == MINUS || peek() == PLUS || peek() == INTLIT || peek() == FLOATLIT || peek() == IDENT)
-  {
-    value->type = peek();
-    nextTok();
-    // return val;
-    while(peek() == PLUS || peek() == MINUS)
-    {
-      // Token op = peek();
-      // nextTok();
-      // auto term = parseTerm();
-      // val->primaries.push_back(move(term));
 
-      cout<<"Inside value parse func\n";
-        
-    }
-  }
-  else
+  auto value = make_unique<Value>();
+  value->terms.push_back(parseTerm());
+  while (peek() == PLUS || peek() == MINUS)
   {
-    throw runtime_error("expected value");
+    value->operator_signs.push_back(peek());
+    nextTok();
+    value->terms.push_back(parseTerm());
   }
+
+
+  return value;
 }
 
 // assign -> IDENT ( ASSIGN | CUSTOM ) value
@@ -201,24 +196,18 @@ unique_ptr<AssignStmt> parseAssign()
   auto assign = make_unique<AssignStmt>();
 
   expect(IDENT, "variable to assign");
-
   assign->id = peekLex;
 
-  if(peek()==ASSIGN)
+  if (peek() == ASSIGN || peek() == PLUS_ASSIGN || peek() == MINUS_ASSIGN || peek() == MULTIPLY_ASSIGN || peek() == DIVIDE_ASSIGN || peek() == CUSTOM)
   {
+    assign->type = peek();
     nextTok();
-    assign->type = ASSIGN;
-  }
-  else if(peek()==CUSTOM)
-  {
-    nextTok();
-    assign->type = CUSTOM;
   }
   else
   {
     throw runtime_error("expected assignment operator");
   }
-
+  assign->right_hand_side = parseValue();
   return assign;
 }
 
@@ -244,8 +233,12 @@ unique_ptr<WriteStmt> parseWrite()
   auto write = make_unique<WriteStmt>();
   expect(WRITE, "start of write block");
   expect(OPENPAREN, "open parenthases");
-  expect(STRINGLIT, "string literal");
-  write->content = peekLex;
+  if (peek() == STRINGLIT|| peek() == IDENT)
+  {
+    write->type = peek();
+    nextTok();
+    write->content = peekLex;
+  }
 
   expect(CLOSEPAREN, "close parenthases");
 
@@ -353,31 +346,3 @@ unique_ptr<Program> parse()
 
   return root;
 }
-
-============================================================================
- parser.cpp — Recursive-descent parser
-----------------------------------------------------------------------------
-MSU CSE 4714/6714 Capstone Project (Spring 2026)
-Author: Derek Willis
-============================================================================
-
-LEXER ADDITIONS REQUIRED (lexer.h):
-  The following tokens must be defined and added to your lexer's switch/case
-  (tokName) before this file will compile cleanly.
-
-  Token names:    PLUS_ASSIGN   +=
-                  MINUS_ASSIGN  -=
-                  MULT_ASSIGN   *=
-                  DIV_ASSIGN    /=
-                  MOD           %    (if not already present)
-                  CUSTOM        spawn keyword (maps to your SPAWN lexer rule)
-
-  In your .l file add rules like:
-      "+="   { return PLUS_ASSIGN;  }
-      "-="   { return MINUS_ASSIGN; }
-      "*="   { return MULT_ASSIGN;  }
-      "/="   { return DIV_ASSIGN;   }
-      "%"    { return MOD;          }
-      "spawn"{ return CUSTOM;       }
-
-============================================================================

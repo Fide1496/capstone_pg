@@ -33,6 +33,19 @@ inline void ast_line(ostream& os, string prefix, bool last, string label) {
 //           The leaves of the tree toward the top of the file
 
 
+struct Program;
+struct Block;
+struct CompoundStmt;
+struct WriteStmt;
+struct AssignStmt;
+struct ReadStmt;
+struct Spawn;
+struct Value;
+struct Term;
+struct Factor;
+struct Primary;
+struct Literal;
+
 struct Statement{
   
   vector<unique_ptr<Statement>> statements;
@@ -58,19 +71,36 @@ struct Spawn{
 
 struct Primary{
 
-  vector<unique_ptr<Primary>> primaries;
-
   virtual void print_tree(ostream&,string, bool) {}
   virtual void interpret(ostream&) {}
 
 };
 
-struct Value : public Primary{
+
+struct Floatlit : public Primary{
+  string value;
+
+  void print_tree(ostream& out, string prefix, bool last){
+    ast_line(out, prefix, last, "Float Literal: " + value);
+  }
+
+  void interpret(ostream& out) {
+    (void)out;
+  }
+};
+
+struct Literal : public Primary{
   string value;
   Token type;
 
   void print_tree(ostream& out, string prefix, bool last){
-    ast_line(out, prefix, last, "Value: " + value);
+    if (type == INTLIT) {
+      ast_line(out, prefix, last, "Integer Literal: " + value);
+    } else if (type == FLOATLIT) {
+      ast_line(out, prefix, last, "Float Literal: " + value);
+    } else {
+      ast_line(out, prefix, last, "Identifier: " + value);
+    }
   }
 
   void interpret(ostream& out) {
@@ -79,15 +109,41 @@ struct Value : public Primary{
 };
 
 struct Term : public Primary{
+  Token operator_type;
+  vector<unique_ptr<Factor>> factors;
+
+  void print_tree(ostream& out, string prefix, bool last){
+    ast_line(out, prefix, last, "Term: ");
+    string child_prefix = prefix + (last ? "    ": "|   ");
+    for (size_t i = 0; i < factors.size(); ++i) {
+      ast_line(out, child_prefix, false, "Operator: " + string(1, static_cast<char>(operator_type)));
+      
+      factors[i]->print_tree(out, child_prefix + "    ", true);
+    }
+  }
+
+  void interpret(ostream& out) {
+    (void)out;
+  }
 
 };
 
 struct Factor : public Primary{
-  string value;
-  Token type;
+
+  bool negative = false;
+  unique_ptr<Primary> primary;
 
   void print_tree(ostream& out, string prefix, bool last){
-    ast_line(out, prefix, last, "Factor: " + value);
+    if (negative) {
+      ast_line(out, prefix, last, "Factor: -");
+    } 
+    else {
+      ast_line(out, prefix, last, "Factor: ");
+    }
+    if (primary) {
+      string child_prefix = prefix + (last ? "    ": "|   ");
+      primary->print_tree(out, child_prefix, true);
+    }
   }
 
   void interpret(ostream& out) {
@@ -95,31 +151,75 @@ struct Factor : public Primary{
   }
 };
 
+struct Value : public Primary{
+  vector<Token> operator_signs;
+  vector<unique_ptr<Term>> terms;
+
+  void print_tree(ostream& out, string prefix, bool last){
+    ast_line(out, prefix, last, "Value: ");
+    string child_prefix = prefix + (last ? "    ": "|   ");
+    for (size_t i = 0; i < operator_signs.size(); ++i) {
+      string child_prefix = prefix + (last ? "    ": "|   ");
+      string opStr = string(1, static_cast<char>(operator_signs[i]));
+      ast_line(out, child_prefix, false, "Op: " + opStr);
+
+      terms[i]->print_tree(out, child_prefix + "    ", true);
+      
+    }
+  }
+
+  void interpret(ostream& out) {
+    (void)out;
+  }
+};
+
+
+
+// assign → IDENT ( ASSIGN | CUSTOM_OPERATORS ) value
 struct AssignStmt : public Statement{
 
   string id;
   Token type;
-  unique_ptr<Value> value;
+  unique_ptr<Value> right_hand_side;
 
-  void print_tree(ostream& out, string prefix, bool last){
+  void print_tree(ostream& out, string prefix, bool last) override{
+    string assignment_type;
+
+    if (type == ASSIGN) 
+      assignment_type = ":=";
+    else if(type==PLUS_ASSIGN)
+      assignment_type = "+=";
+    else if(type==MINUS_ASSIGN)
+      assignment_type = "-=";
+    else if(type==MULTIPLY_ASSIGN)
+      assignment_type = "*=";
+    else if(type== DIVIDE_ASSIGN)
+      assignment_type = "/=";
+    else if(type==CUSTOM)
+      assignment_type = "spawn";
+
     ast_line(out, prefix, last, "Assign Statement");
     string child_prefix = prefix + (last ? "    ": "|   ");
+    if (right_hand_side) {
+      right_hand_side->print_tree(out, child_prefix, true);
+    }
   }
 
+  // TODO
   void interpret(ostream& out) override {
     (void)out;
-    auto& lhs = symbolTable[id]; 
-    visit([&](auto& slot) {
-      using T = decay_t<decltype(slot)>; 
-      if (type == INTLIT) {
-        slot = static_cast<T>(stoi(value));
-      } else if (type == FLOATLIT) {
-        slot = static_cast<T>(stod(value));
-      } else {
-        auto& rhs = symbolTable[value]; 
-        visit([&](auto r) { slot = static_cast<T>(r); }, rhs);
-      }
-    }, lhs);
+    // auto& lhs = symbolTable[id]; 
+    // visit([&](auto& slot) {
+    //   using T = decay_t<decltype(slot)>; 
+    //   if (type == INTLIT) {
+    //     slot = static_cast<T>(stoi(value));
+    //   } else if (type == FLOATLIT) {
+    //     slot = static_cast<T>(stod(value));
+    //   } else {
+    //     auto& rhs = symbolTable[value]; 
+    //     visit([&](auto r) { slot = static_cast<T>(r); }, rhs);
+    //   }
+    // }, lhs);
   }
 
 };
@@ -174,7 +274,6 @@ struct CompoundStmt : public Statement{
   vector<unique_ptr<Statement>> statements;
 
   void print_tree(ostream& out, string prefix, bool last){
-    // cout<<"Inside compound statement print tree func\n";
 
     ast_line(out, prefix, last, "Compound Statement");
     string child_prefix = prefix + (last ? "    ": "|   ");
@@ -184,7 +283,6 @@ struct CompoundStmt : public Statement{
   }
 
   void interpret(ostream& out){
-    // cout<<"Inside compound statement interpret func\n";
     for (const auto& stmt: statements){
       stmt->interpret(out);
     }
@@ -193,28 +291,17 @@ struct CompoundStmt : public Statement{
 };
 
 
-// TODO: Finish this struct for Block
 struct Block
 {
-  // TODO: Declare Any Member Variables
   unique_ptr<CompoundStmt> compound;
   
-
-  // Member Function to Print
   void print_tree(ostream& out,string prefix,bool last){
-    // TODO: Finish this function
-
     cout << "Block\n";
-
-    compound->print_tree(out, prefix, last);
-    
+    if (compound) compound->print_tree(out, prefix, last);
   }
 
-  // Member Function to Interpret
   void interpret(ostream& out){
     if (compound) compound->interpret(out); 
-    // cout<<"inside block interpret func" << out;
-  
   }
 };
 
@@ -243,10 +330,3 @@ struct Program
     if (block) block->interpret(out); 
   }
 };
-
-=============================================================================
-  ast.h 
-=============================================================================
-MSU CSE 4714/6714 Capstone Project (Spring 2026)
-Author: Derek Willis
-=============================================================================
