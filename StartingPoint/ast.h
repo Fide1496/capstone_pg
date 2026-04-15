@@ -101,7 +101,6 @@ struct Statement{
   
   vector<unique_ptr<Statement>> statements;
 
-  // Virtual functions for abstract base class
   virtual void print_tree(ostream&,string, bool) {}
   virtual void interpret(ostream&) {}
 };
@@ -193,7 +192,7 @@ struct Literal : public Primary{
     else if (value_type == FLOATLIT) {
       return stod(value);
     } 
-    else { // IDENT
+    else {
       auto it = symbolTable.find(value);
       if (it == symbolTable.end()) {
         throw runtime_error("undefined variable: " + value);
@@ -359,7 +358,7 @@ struct ReadStmt : public Statement{
 
       try {
         if constexpr (is_same_v<T, int>) {
-          double temp = stod(input);  // read full number
+          double temp = stod(input);  
 
           if (temp > INT_MAX || temp < INT_MIN) {
             cerr << "[Warning] value out of int range, truncating\n";

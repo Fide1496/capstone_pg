@@ -55,7 +55,7 @@ STRING          { return STRINGLIT; }
 "<"             { return LESSTHAN; }
 ">"             { return GREATERTHAN; }
 "!="            { return NOTEQUALTO; }
-"%"             { return MOD; }
+"MOD"           { return MOD; }
 "!"             { return TOK_NOT; }
 "||"            { return TOK_OR; }
 "&&"            { return TOK_AND; }

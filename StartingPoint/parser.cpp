@@ -117,6 +117,7 @@ unique_ptr<Statement> parseStatement()
   {
     throw runtime_error("expected start of statement");
   }
+
 }
 
 
@@ -124,9 +125,6 @@ unique_ptr<Statement> parseStatement()
 // TODO: primary -> FLOATLIT | INTLIT | IDENT | OPENPAREN value CLOSEPAREN
 unique_ptr<Primary> parsePrimary()
 {
-  // Update this functions to handle int, float, or identifier literals as well as parenthesized expressions
-
-  // TODO Verify this AI generated code
   if (peek() == INTLIT || peek() == FLOATLIT || peek() == IDENT)
   {
     auto literal = make_unique<Literal>();
@@ -157,7 +155,7 @@ unique_ptr<Factor> parseFactor()
   if (peek() == MINUS)
   {
     factor->negative = true;
-    nextTok(); // consume the minus
+    nextTok();
   }
 
   factor->primary = parsePrimary();
@@ -235,6 +233,7 @@ unique_ptr<ReadStmt> parseRead()
   return read;
 }
 
+
 unique_ptr<WriteStmt> parseWrite()
 {
 
@@ -261,7 +260,7 @@ unique_ptr<CompoundStmt> parseCompound()
 
   compound->statements.push_back(parseStatement());
 
-  // Handle multiple optional statements
+  
   while (peek() == SEMICOLON)
   {
     expect(SEMICOLON, "semicolon");
