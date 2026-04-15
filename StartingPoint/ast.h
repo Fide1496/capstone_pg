@@ -116,31 +116,32 @@ struct Primary{
 
 };
 
-// inline map<string, variant<int,double>> symbolTable;
-// TODO: in the spawn struct, read all variables from the symbol table and print them out (for testing purposes)
+
+// TODO: custom statement for spawn
+// Calculated program score based on number and types of variables in symbol table, 
+// then prints a motivational message based on the score
 struct Spawn : public Statement{
 
 
   void print_tree(ostream& out, string prefix, bool last){
     ast_line(out, prefix, last, "Spawn Statement");
     string child_prefix = prefix + (last ? "    ": "|   ");
-    out << prefix <<  "Prgram variables:\n";
+    out << child_prefix <<  "Program variables:\n";
     for (const auto& [name, value] : symbolTable) {
-      out << child_prefix << "  " << name << " = ";
-      visit([&out](auto&& arg) { out << arg; }, value);
+      out << child_prefix << "  " << name;
       out << "\n";
     } 
   }
-  
-// TODO: calculate program score based off symbole table and print it out in interpret function
+
+
   void interpret(ostream& out) {
-    // (void)out;
+    (void)out;
     
-    // TODO: calculate score based on symbol table values with weights for each variable
     double ident_weight = 10;
     double double_weight = 5;
     double int_weight = 1;
     double score = 0;
+
     for (const auto& [name, value] : symbolTable) {
       visit([&score, &ident_weight, &double_weight, &int_weight](auto&& arg) { 
         using T = decay_t<decltype(arg)>;
@@ -153,6 +154,7 @@ struct Spawn : public Statement{
         }
       }, value);
     }
+    out << "Grading your program based on your variables...\n";
     out << "Program Score: " << score << "\n";
 
     if (score < 5){
