@@ -81,6 +81,13 @@ unique_ptr<Value> parseValue();
 unique_ptr<Term> parseTerm();
 unique_ptr<Factor> parseFactor();
 
+unique_ptr<Spawn> parseSpawn()
+{
+  auto spawn = make_unique<Spawn>();
+  expect(CUSTOM, "spawn statement");
+  spawn->print_tree(cout, "", true);
+  return spawn;
+}
 
 // TODO: statement -> assign | compound | write | read | spawn (CUSTOM)
 unique_ptr<Statement> parseStatement()
@@ -102,16 +109,17 @@ unique_ptr<Statement> parseStatement()
   {
     return parseRead();
   }
-  // else if (peek() == CUSTOM)
-  // {
-  //   return parseSpawn();
-  // }
+  else if (peek() == CUSTOM)
+  {
+    return parseSpawn();
+  }
+  else
+  {
+    throw runtime_error("expected start of statement");
+  }
 }
 
-unique_ptr<Spawn> parseSpawn()
-{
-  throw runtime_error("parseSpawn not implemented yet");
-}
+
 
 // TODO: primary -> FLOATLIT | INTLIT | IDENT | OPENPAREN value CLOSEPAREN
 unique_ptr<Primary> parsePrimary()
@@ -122,9 +130,9 @@ unique_ptr<Primary> parsePrimary()
   if (peek() == INTLIT || peek() == FLOATLIT || peek() == IDENT)
   {
     auto literal = make_unique<Literal>();
-    literal->type = peek();
-    nextTok(); // consume the literal or identifier
-    literal->value = peekLex;
+    literal->value_type = peek();
+    literal->value = peekLex; 
+    nextTok();
     return literal;
   }
   else if (peek() == OPENPAREN)
@@ -165,7 +173,7 @@ unique_ptr<Term> parseTerm()
 
   while (peek() == MULTIPLY || peek() == DIVIDE || peek() == MOD)
   {
-    term->operator_type = peek();
+    term->ops.push_back(peek());
     nextTok();
     term->factors.push_back(parseFactor());
   }
@@ -178,13 +186,13 @@ unique_ptr<Value> parseValue()
 
   auto value = make_unique<Value>();
   value->terms.push_back(parseTerm());
+
   while (peek() == PLUS || peek() == MINUS)
   {
     value->operator_signs.push_back(peek());
     nextTok();
     value->terms.push_back(parseTerm());
   }
-
 
   return value;
 }
@@ -207,7 +215,7 @@ unique_ptr<AssignStmt> parseAssign()
   {
     throw runtime_error("expected assignment operator");
   }
-  assign->right_hand_side = parseValue();
+  assign->rhs = parseValue();
   return assign;
 }
 
