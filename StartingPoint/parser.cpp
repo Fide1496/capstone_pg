@@ -260,6 +260,10 @@ unique_ptr<CompoundStmt> parseCompound()
 
   compound->statements.push_back(parseStatement());
 
+  if(peek() == VAR) {
+    auto varDecls = parseVarDeclSection();
+    varDecls->interpret(cout);
+  }
   
   while (peek() == SEMICOLON)
   {
@@ -311,16 +315,13 @@ unique_ptr<Program> parseProgram()
 {
   // Make a pointer to the node we need to build
   auto p = make_unique<Program>();
-  // Step through the grammar, storing anything necessary as member variables
   expect(PROGRAM, "start of program");
   expect(IDENT, "program name");
   // Store the program name
   p->name = peekLex;
   expect(SEMICOLON, "after program name");
-  // Store a pointer to the appropriate block
   p->block = parseBlock();
   expect(TOK_EOF, "at end of file (no trailing tokens after program)");
-  // Nothing left in the grammar so we return our node pointer
   return p;
 }
 
@@ -346,10 +347,26 @@ unique_ptr<Program> parse()
   if (peek() != TOK_EOF)
   {
     ostringstream oss;
-    oss << "Parse error (line " << yylineno << "): extra tokens after <program>, got "
+    oss << "Parse error (line " << yylineno << "): extra tokens after program, got "
         << tname(peekTok) << " [" << (yytext ? yytext : "") << "]";
     throw runtime_error(oss.str());
   }
 
   return root;
 }
+
+// void interpret(ostream& out) override {
+//  (void)out;
+//  auto& lhs = symbolTable[id]; // guaranteed to exist
+//  visit([&](auto& slot) {
+//   using T = decay_t<decltype(slot)>; // T is int or double
+//   if (value_type == INTLIT) {
+//   slot = static_cast<T>(stoi(value));
+//   } else if (value_type == FLOATLIT) {
+//   slot = static_cast<T>(stod(value));
+//   } else { // IDENT
+//   auto& rhs = symbolTable[value]; // guaranteed to exist
+//   visit([&](auto r) { slot = static_cast<T>(r); }, rhs);
+//   }
+//  }, lhs);
+// }

@@ -17,6 +17,8 @@
 #include "lexer.h"
 using namespace std;
 
+inline map<string, variant<int,double>> symbolTable;
+
 // -----------------------------------------------------------------------------
 // External symbol table
 // -----------------------------------------------------------------------------
