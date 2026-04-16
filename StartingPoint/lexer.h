@@ -49,6 +49,10 @@
 #define TOK_OR      3011
 #define TOK_AND     3012
 #define CUSTOM_OPER 3013
+#define PLUS_ASSIGN 3014
+#define MINUS_ASSIGN 3015
+#define MULTIPLY_ASSIGN 3016
+#define DIVIDE_ASSIGN 3017
 // ---------------------------------------------------------------------------
 // Useful abstractions
 // ---------------------------------------------------------------------------
@@ -104,6 +108,10 @@ inline const char* tokName(Token t) {
     case LESSTHAN:      return "LESSTHAN";
     case GREATERTHAN:   return "GREATERTHAN";
     case NOTEQUALTO:    return "NOTEQUALTO";
+    case PLUS_ASSIGN:   return "PLUS_ASSIGN";
+    case MINUS_ASSIGN:  return "MINUS_ASSIGN";
+    case MULTIPLY_ASSIGN: return "MULTIPLY_ASSIGN";
+    case DIVIDE_ASSIGN: return "DIVIDE_ASSIGN";
     case MOD:           return "MOD";
     case TOK_NOT:       return "NOT";
     case TOK_OR:        return "OR";

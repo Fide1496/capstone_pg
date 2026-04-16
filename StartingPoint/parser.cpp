@@ -1,5 +1,5 @@
 // ============================================================================
-//  parser.cpp — Recursive-descent parser 
+//  parser.cpp — Recursive-descent parser
 // ----------------------------------------------------------------------------
 // MSU CSE 4714/6714 Capstone Project (Spring 2026)
 // Author: Derek Willis
@@ -20,35 +20,44 @@ using namespace std;
 // -----------------------------------------------------------------------------
 // One-token lookahead
 // -----------------------------------------------------------------------------
-bool   havePeek = false;
-Token  peekTok  = 0;
+bool havePeek = false;
+Token peekTok = 0;
 string peekLex;
 
-inline const char* tname(Token t) { return tokName(t); }
+extern map<string, variant<int, double>> symbolTable;
+inline const char *tname(Token t) { return tokName(t); }
 
-Token peek() 
+Token peek()
 {
-  if (!havePeek) {
+  if (!havePeek)
+  {
     peekTok = yylex();
-    if (peekTok == 0) { peekTok = TOK_EOF; peekLex.clear(); }
-    else              { peekLex = yytext ? string(yytext) : string(); }
-    dbg::line(string("peek: ") + tname(peekTok) + (peekLex.empty() ? "" : " ["+peekLex+"]")
-              + " @ line " + to_string(yylineno));
+    if (peekTok == 0)
+    {
+      peekTok = TOK_EOF;
+      peekLex.clear();
+    }
+    else
+    {
+      peekLex = yytext ? string(yytext) : string();
+    }
+    dbg::line(string("peek: ") + tname(peekTok) + (peekLex.empty() ? "" : " [" + peekLex + "]") + " @ line " + to_string(yylineno));
     havePeek = true;
   }
   return peekTok;
 }
-Token nextTok() 
+Token nextTok()
 {
   Token t = peek();
   dbg::line(string("consume: ") + tname(t));
   havePeek = false;
   return t;
 }
-Token expect(Token want, const char* msg) 
+Token expect(Token want, const char *msg)
 {
   Token got = nextTok();
-  if (got != want) {
+  if (got != want)
+  {
     dbg::line(string("expect FAIL: wanted ") + tname(want) + ", got " + tname(got));
     ostringstream oss;
     oss << "Parse error (line " << yylineno << "): expected "
@@ -59,198 +68,257 @@ Token expect(Token want, const char* msg)
   return got;
 }
 
-// Forword declarations 
-unique_ptr<WriteStmt> parse_write_stmt();
-unique_ptr<CompoundStmt> parse_compound_stmt();
-unique_ptr<Statement> parse_statement();
+// Function declarations
+unique_ptr<Statement> parseStatement();\
+unique_ptr<Primary> parsePrimary();
+unique_ptr<CompoundStmt> parseCompound();
+unique_ptr<WriteStmt> parseWrite();
 unique_ptr<Block> parseBlock();
 unique_ptr<AssignStmt> parseAssign();
 unique_ptr<ReadStmt> parseRead();
-unique_ptr<VarDeclSection> parseVarDeclSection();
+unique_ptr<Spawn> parseSpawn();
+unique_ptr<Value> parseValue();
+unique_ptr<Term> parseTerm();
+unique_ptr<Factor> parseFactor();
 
-// TODO: implement parsing functions for each grammar in your language
+unique_ptr<Spawn> parseSpawn()
+{
+  auto spawn = make_unique<Spawn>();
+  expect(CUSTOM, "spawn statement");
+  spawn->print_tree(cout, "", true);
+  return spawn;
+}
 
-unique_ptr<ReadStmt> parseRead() {
+// TODO: statement -> assign | compound | write | read | spawn (CUSTOM)
+unique_ptr<Statement> parseStatement()
+{
+
+  if (peek() == TOK_BEGIN)
+  {
+    return parseCompound();
+  }
+  else if (peek() == WRITE)
+  {
+    return parseWrite();
+  }
+  else if (peek() == IDENT)
+  {
+    return parseAssign();
+  }
+  else if (peek() == READ)
+  {
+    return parseRead();
+  }
+  else if (peek() == CUSTOM)
+  {
+    return parseSpawn();
+  }
+  else
+  {
+    throw runtime_error("expected start of statement");
+  }
+
+}
+
+
+
+// TODO: primary -> FLOATLIT | INTLIT | IDENT | OPENPAREN value CLOSEPAREN
+unique_ptr<Primary> parsePrimary()
+{
+  if (peek() == INTLIT || peek() == FLOATLIT || peek() == IDENT)
+  {
+    auto literal = make_unique<Literal>();
+    literal->value_type = peek();
+    literal->value = peekLex; 
+    nextTok();
+    return literal;
+  }
+  else if (peek() == OPENPAREN)
+  {
+    nextTok();
+    auto expr = parseValue();
+    expect(CLOSEPAREN, "closing parenthesis");
+    return expr;
+  }
+  else
+  {
+    throw runtime_error("expected primary expression");
+  }
+}
+
+// factor -> [ MINUS ] primary
+unique_ptr<Factor> parseFactor()
+{
+  auto factor = make_unique<Factor>();
+  factor->negative = false;
+
+  if (peek() == MINUS)
+  {
+    factor->negative = true;
+    nextTok();
+  }
+
+  factor->primary = parsePrimary();
+  return factor;
+
+}
+
+// TODO factor { ( MULTIPLY | DIVIDE | MOD) factor }
+unique_ptr<Term> parseTerm()
+{
+  auto term = make_unique<Term>();
+  term->factors.push_back(parseFactor());
+
+  while (peek() == MULTIPLY || peek() == DIVIDE || peek() == MOD)
+  {
+    term->ops.push_back(peek());
+    nextTok();
+    term->factors.push_back(parseFactor());
+  }
+  return term;
+}
+
+// TODO value->term { ( PLUS | MINUX) term }
+unique_ptr<Value> parseValue()
+{
+
+  auto value = make_unique<Value>();
+  value->terms.push_back(parseTerm());
+
+  while (peek() == PLUS || peek() == MINUS)
+  {
+    value->operator_signs.push_back(peek());
+    nextTok();
+    value->terms.push_back(parseTerm());
+  }
+
+  return value;
+}
+
+// assign -> IDENT ( ASSIGN | CUSTOM ) value
+unique_ptr<AssignStmt> parseAssign()
+{
+
+  auto assign = make_unique<AssignStmt>();
+
+  expect(IDENT, "variable to assign");
+  assign->id = peekLex;
+
+  if (peek() == ASSIGN || peek() == PLUS_ASSIGN || peek() == MINUS_ASSIGN || peek() == MULTIPLY_ASSIGN || peek() == DIVIDE_ASSIGN || peek() == CUSTOM)
+  {
+    assign->type = peek();
+    nextTok();
+  }
+  else
+  {
+    throw runtime_error("expected assignment operator");
+  }
+  assign->rhs = parseValue();
+  return assign;
+}
+
+unique_ptr<ReadStmt> parseRead()
+{
+
   auto read = make_unique<ReadStmt>();
-
-  expect(READ, "start of read statement");
-  expect(OPENPAREN, "after READ");
-  expect(IDENT, "variable name in read statement");
+  expect(READ, "read variable");
+  expect(OPENPAREN, "open parenthases");
+  expect(IDENT, "blah");
   read->target = peekLex;
-  expect(CLOSEPAREN, "after variable name in read statement");
+  auto it = symbolTable.find(read->target);
+  if (it == symbolTable.end())
+    throw runtime_error("undeclared variable");
+  expect(CLOSEPAREN, "close parenthases");
 
   return read;
 }
 
-unique_ptr<AssignStmt> parseAssign() {
-  auto assign = make_unique<AssignStmt>();
 
-  expect(IDENT, "variable name in assignment");
-  assign->id = peekLex;
-  expect(ASSIGN, "after variable name in assignment");
-  Token value_type = peek();
-  if (value_type == INTLIT || value_type == FLOATLIT) {
-    assign->type = value_type;
-    assign->value = peekLex;
-    expect(value_type, "value in assignment");
-  } else if (value_type == IDENT) {
-    assign->type = IDENT;
-    assign->value = peekLex;
-    expect(IDENT, "variable name as value in assignment");
-  } else {
-    ostringstream oss;
-    oss << "Parse error (line " << yylineno << "): expected integer literal, float literal, or identifier as value in assignment, got "
-        << tname(value_type) << " [" << (yytext ? yytext : "") << "]";
-    throw runtime_error(oss.str());
-  }
+unique_ptr<WriteStmt> parseWrite()
+{
 
-  return assign;
-}
-
-unique_ptr<VarDeclSection> parseVarDeclSection() {
-
-  // block -> [VAR IDENT COLON (REAL | INTEGER) SEMICOLON
-  //           { IDENT COLON (REAL | INTEGER) SEMICOLON } ]
-  // Parse: VAR + (IDENT COLON type SEMICOLON)+ 
-
-  auto varDeclSection = make_unique<VarDeclSection>();
-  expect(VAR, "start of variable declaration section");
-  do {
-    expect(IDENT, "variable name in declaration");
-    string id = peekLex;
-    expect(COLON, "after variable name in declaration");
-    Token type = peek();
-    if (type != REAL && type != INTEGER) {
-      ostringstream oss;
-      oss << "Parse error (line " << yylineno << "): expected type REAL or INTEGER in variable declaration, got "
-          << tname(type) << " [" << (yytext ? yytext : "") << "]";
-      throw runtime_error(oss.str());
-    }
-    expect(type, "type in variable declaration");
-    expect(SEMICOLON, "after variable declaration");
-    varDeclSection->declarations.emplace_back(type, id);
-  } while (peek() == IDENT);
-
-  return varDeclSection;
-
-}
-
-// write → WRITE OPENPAREN (STRINGLIT | IDENT) CLOSEPAREN
-unique_ptr<WriteStmt> parse_write_stmt() {
   auto write = make_unique<WriteStmt>();
-
-  expect(WRITE, "start of write statement");
-  expect(OPENPAREN, "after WRITE");
-  Token tok = peek();
-  if (tok == STRINGLIT) {
+  expect(WRITE, "start of write block");
+  expect(OPENPAREN, "open parenthases");
+  if (peek() == STRINGLIT|| peek() == IDENT)
+  {
+    write->type = peek();
+    nextTok();
     write->content = peekLex;
-    write->type = STRINGLIT;
-    expect(STRINGLIT, "string literal in write statement");
-  } else if (tok == IDENT) {
-    write->content = peekLex;
-    write->type = IDENT;
-    expect(IDENT, "identifier in write statement");
-  } else {
-    ostringstream oss;
-    oss << "Parse error (line " << yylineno << "): expected string literal or identifier in write statement, got "
-        << tname(tok) << " [" << (yytext ? yytext : "") << "]";
-    throw runtime_error(oss.str());
   }
-  expect(CLOSEPAREN, "after argument in write statement");
+
+  expect(CLOSEPAREN, "close parenthases");
 
   return write;
 }
 
-
-// compound → TOK_BEGIN statement { SEMICOLON statement } END
-unique_ptr<CompoundStmt> parse_compound_stmt(){
+unique_ptr<CompoundStmt> parseCompound()
+{
   auto compound = make_unique<CompoundStmt>();
 
-  expect(TOK_BEGIN, "start of compound statement");
-  compound->statements.push_back(parse_statement());
-  while (peek() == SEMICOLON) {
-    expect(SEMICOLON, "between statements in compound statement");
-    compound->statements.push_back(parse_statement());
-  }
-  expect(END, "end of compound statement");
+  expect(TOK_BEGIN, "begin token");
 
-  return compound;
-}
-
-// statement → compound | write
-unique_ptr<Statement> parse_statement(){
-  // TODO: Dispath to read/write/assign/compound based on peek token type
-  // parseStatement()
-  // Lookahead dispatch:
-  // TOK_BEGIN → compound
-  // READ → read
-  // WRITE → write
-  // IDENT → assign
-
-
-
-  if (peek() == TOK_BEGIN) {
-    return parse_compound_stmt();
-  }
-  else if (peek() == READ) {
-    return parseRead();
-  }
-  else if (peek() == WRITE) {
-    return parse_write_stmt();
-  }
-  else if (peek() == IDENT) {
-    return parseAssign();
-  }
-  else {
-    ostringstream oss;
-    oss << "Parse error (line " << yylineno << "): expected statement, got "
-        << tname(peekTok) << " [" << (yytext ? yytext : "") << "]";
-    throw runtime_error(oss.str());
-  }
-  
-}
-
-// block → compound
-unique_ptr<Block> parseBlock(){
-
-//   TODO: Parse declarations if any; add to symbolTable;
-//   then parse compound statement.
-
-  auto block = make_unique<Block>();
+  compound->statements.push_back(parseStatement());
 
   if(peek() == VAR) {
     auto varDecls = parseVarDeclSection();
     varDecls->interpret(cout);
   }
   
-  if(peek() == INTEGER || peek() == REAL) {
-    Token type = nextTok();
-    expect(IDENT, "variable name in declaration");
-    string id = peekLex;
-    expect(IDENT, "variable name in declaration");
-    expect(SEMICOLON, "after variable declaration");
+  while (peek() == SEMICOLON)
+  {
+    expect(SEMICOLON, "semicolon");
+    compound->statements.push_back(parseStatement());
+  }
 
-    if (type == INTEGER) {
-      symbolTable[id] = 0; 
-    } else if (type == REAL) {
-      symbolTable[id] = 0.0; 
+  expect(END, "end of compound stmt");
+
+  return compound;
+}
+
+unique_ptr<Block> parseBlock()
+{
+
+  auto b = make_unique<Block>();
+
+  if (peek() == VAR)
+  {
+    expect(VAR, "variable declarations");
+    while (peek() == IDENT)
+    {
+      expect(IDENT, "variable name");
+      string name = peekLex;
+      expect(COLON, "colon");
+      Token typeTok = nextTok();
+      if (typeTok != INTEGER && typeTok != REAL)
+      {
+        throw runtime_error("expected variable after colon");
+      }
+      if (symbolTable.find(name) != symbolTable.end())
+      {
+        throw runtime_error("variable '" + name + "' already declared");
+      }
+      symbolTable[name] = (typeTok == INTEGER) ? variant<int, double>(0) : variant<int, double>(0.0);
+      expect(SEMICOLON, "semicolon after declaration");
     }
   }
- 
-  block->compound = parse_compound_stmt();
- 
-  return block;
+
+  b->compound = parseCompound();
+
+  return b;
 }
 
 // -----------------------------------------------------------------------------
 // Program → PROGRAM IDENT ';' Block EOF
 // -----------------------------------------------------------------------------
-unique_ptr<Program> parseProgram() {
+unique_ptr<Program> parseProgram()
+{
   // Make a pointer to the node we need to build
   auto p = make_unique<Program>();
   expect(PROGRAM, "start of program");
   expect(IDENT, "program name");
-  p->name  = peekLex;
+  // Store the program name
+  p->name = peekLex;
   expect(SEMICOLON, "after program name");
   p->block = parseBlock();
   expect(TOK_EOF, "at end of file (no trailing tokens after program)");
@@ -269,23 +337,15 @@ unique_ptr<Program> parse()
   havePeek = false;
   peekTok = 0;
   peekLex.clear();
-  
-  unique_ptr<Program> root;
-  
-  if (peek() == PROGRAM) {
-    root = parseProgram();
-  } else if (peek() == TOK_BEGIN) {
-    root = make_unique<Program>();
-    root->name = "(unnamed)";
-    root->block = parseBlock();
-  } else {
-    ostringstream oss;
-    oss << "Parse error (line " << yylineno << "): expected PROGRAM or BEGIN, got "
-        << tname(peek()) << " [" << (yytext ? yytext : "") << "]";
-    throw runtime_error(oss.str());
-  }
 
-  if (peek() != TOK_EOF) {
+  // *****************************************************
+  // To test piece-wise change the parser function you set as your root
+  auto root = parseProgram();
+  // *****************************************************
+
+  // Ensure no extra tokens remain
+  if (peek() != TOK_EOF)
+  {
     ostringstream oss;
     oss << "Parse error (line " << yylineno << "): extra tokens after program, got "
         << tname(peekTok) << " [" << (yytext ? yytext : "") << "]";
